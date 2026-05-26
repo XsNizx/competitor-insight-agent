@@ -19,6 +19,9 @@ from competitor_agent.config import settings
 from competitor_agent.tools.cache_tools import slugify
 
 
+APP_STATE_VERSION = "deepseek_only_v1"
+
+
 st.set_page_config(
     page_title="竞品洞察智能体",
     page_icon="CI",
@@ -63,6 +66,10 @@ def _inject_style() -> None:
 def _init_state() -> None:
     """初始化页面状态，保存上一次报告和进度事件。"""
 
+    if st.session_state.get("_app_state_version") != APP_STATE_VERSION:
+        st.session_state.clear()
+        st.session_state["_app_state_version"] = APP_STATE_VERSION
+
     st.session_state.setdefault("markdown", "")
     st.session_state.setdefault("report_topic", "")
     st.session_state.setdefault("events", [])
@@ -80,38 +87,29 @@ def _build_sidebar() -> dict[str, Any]:
 
     with st.sidebar:
         st.header("运行配置")
-        model_label = st.radio(
-            "模型选择",
-            ["外部模型：DeepSeek", "本地模型：Ollama llama3.2"],
-            index=0,
-            help="两种模型都会使用 Tavily 在线搜索；区别只在 LLM 来自 DeepSeek 还是本地 Ollama。",
+        st.caption("模型固定使用 DeepSeek，搜索固定使用 Tavily。")
+        tavily_api_key = st.text_input(
+            "Tavily API Key",
+            type="password",
+            placeholder="请输入 Tavily API Key",
+            key="tavily_api_key",
         )
-        model_provider = "ollama" if model_label.startswith("本地") else "deepseek"
-
-        st.caption("搜索固定使用 Tavily，因此无论选择哪种模型都需要 Tavily API Key。")
-        tavily_api_key = st.text_input("Tavily API Key", type="password", placeholder="请输入 Tavily API Key")
-
-        if model_provider == "deepseek":
-            st.caption("外部模型需要 DeepSeek API Key。")
-            deepseek_api_key = st.text_input("DeepSeek API Key", type="password", placeholder="请输入 DeepSeek API Key")
-            model_id = st.text_input("DeepSeek 模型", value=settings.deepseek_model)
-            ollama_host = None
-            ready = bool(tavily_api_key.strip() and deepseek_api_key.strip() and model_id.strip())
-            if not ready:
-                st.warning("请先填写 Tavily API Key、DeepSeek API Key 和模型名。")
-        else:
-            st.caption("本地模型不需要模型 API Key，但需要本机 Ollama 服务已启动，并已拉取 llama3.2:latest。")
-            deepseek_api_key = ""
-            model_id = st.text_input("Ollama 模型", value=settings.ollama_model or "llama3.2:latest")
-            ollama_host = st.text_input("Ollama 地址", value=settings.ollama_host)
-            ready = bool(tavily_api_key.strip() and model_id.strip() and ollama_host.strip())
-            if not ready:
-                st.warning("请先填写 Tavily API Key，并确认 Ollama 模型名和地址。")
+        deepseek_api_key = st.text_input(
+            "DeepSeek API Key",
+            type="password",
+            placeholder="请输入 DeepSeek API Key",
+            key="deepseek_api_key",
+        )
+        model_id = st.text_input("DeepSeek 模型", value=settings.deepseek_model, key="deepseek_model_id")
+        ready = bool(tavily_api_key.strip() and deepseek_api_key.strip() and model_id.strip())
+        if not ready:
+            st.warning("请先填写 Tavily API Key、DeepSeek API Key 和模型名。")
 
         use_cache = st.toggle(
             "使用竞品画像缓存",
             value=False,
             help="开启后，重复分析同名竞品时会优先读取 data/cache/agno 中的历史画像。",
+            key="use_cache",
         )
         if ready:
             st.success("配置已完成，可以开始分析。")
@@ -119,11 +117,9 @@ def _build_sidebar() -> dict[str, Any]:
         st.caption("报告生成后会在主区域展示 Markdown，并提供下载按钮。")
 
     return {
-        "model_provider": model_provider,
         "deepseek_api_key": deepseek_api_key.strip(),
         "tavily_api_key": tavily_api_key.strip(),
         "model_id": model_id.strip(),
-        "ollama_host": ollama_host.strip() if ollama_host else None,
         "use_cache": use_cache,
         "ready": ready,
     }
@@ -137,7 +133,7 @@ def main() -> None:
 
     config = _build_sidebar()
     ready = config["ready"]
-    mode_label = "Ollama 本地模型 llama3.2 + Tavily 在线搜索" if config["model_provider"] == "ollama" else "DeepSeek 外部模型 + Tavily 在线搜索"
+    mode_label = "DeepSeek + Tavily 在线搜索"
 
     st.markdown(
         f"""
@@ -162,8 +158,15 @@ def main() -> None:
             height=140,
             placeholder="例如：分析 Figma；或：分析 Figma、Canva、Miro 这三个协作设计产品",
             disabled=not ready,
+            key="analysis_request",
         )
-        submitted = st.button("开始分析", type="primary", disabled=not ready or not request.strip(), use_container_width=True)
+        submitted = st.button(
+            "开始分析",
+            type="primary",
+            disabled=not ready or not request.strip(),
+            use_container_width=True,
+            key="start_analysis",
+        )
         if not ready:
             st.info("请先在侧栏完成当前模型所需配置。")
 
@@ -199,12 +202,9 @@ def main() -> None:
         try:
             workflow = AgnoCompetitorWorkflow(
                 use_cache=config["use_cache"],
-                model_id=config["model_id"] if config["model_provider"] == "deepseek" else None,
+                model_id=config["model_id"],
                 deepseek_api_key=config["deepseek_api_key"],
                 tavily_api_key=config["tavily_api_key"],
-                model_provider=config["model_provider"],
-                ollama_model=config["model_id"] if config["model_provider"] == "ollama" else None,
-                ollama_host=config["ollama_host"],
                 progress_callback=progress_callback,
             )
             report, markdown = workflow.run(request.strip())

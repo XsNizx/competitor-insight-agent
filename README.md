@@ -9,7 +9,7 @@
 - **多智能体分析流程**：Planner、Search、Extractor、Analyst、Reporter 分工协作
 - **真实网页证据**：使用 Tavily 搜索公开信息，降低纯模型幻觉风险
 - **结构化输出**：用 Pydantic schema 约束中间结果，便于校验和复用
-- **双模型模式**：支持 DeepSeek 在线模型，也支持本地 Ollama 模型
+- **DeepSeek 推理**：使用 DeepSeek 在线模型生成结构化分析和报告
 - **网页交互**：基于 Streamlit 提供可视化输入、运行状态和 Markdown 下载
 - **可选缓存**：可复用已生成的竞品画像，减少重复搜索和模型调用
 
@@ -40,7 +40,7 @@ ReportAgent 生成中文 Markdown 报告
 - [Agno](https://github.com/agno-agi/agno): 多智能体编排
 - [Streamlit](https://streamlit.io/): Web UI
 - Tavily Search API: 在线检索
-- DeepSeek 或 Ollama: LLM 推理
+- DeepSeek: LLM 推理
 - Pydantic: 结构化输出校验
 
 ## Quick Start
@@ -69,12 +69,10 @@ streamlit run streamlit_app.py
 
 打开 Streamlit 页面后：
 
-1. 在侧栏选择模型：DeepSeek 或 Ollama
-2. 填写 Tavily API Key
-3. 如果选择 DeepSeek，再填写 DeepSeek API Key 和模型名
-4. 如果选择 Ollama，确认本地 Ollama 服务已启动，并填写模型名和服务地址
-5. 输入分析需求，例如：`分析 Figma 和它的竞品`
-6. 点击“开始分析”，等待报告生成后下载 Markdown
+1. 填写 Tavily API Key
+2. 填写 DeepSeek API Key 和模型名
+3. 输入分析需求，例如：`分析 Figma 和它的竞品`
+4. 点击“开始分析”，等待报告生成后下载 Markdown
 
 ## Project Structure
 
