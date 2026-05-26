@@ -1,0 +1,30 @@
+# Python 解释器生成的缓存文件。
+__pycache__/
+*.py[cod]*
+
+# 常见测试、类型检查和 lint 工具缓存。
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 本地虚拟环境目录。
+.venv/
+venv/
+
+# 本地密钥配置。
+.env
+
+# 单元测试生成的临时缓存。
+tests/_tmp_cache/
+tests/_tmp_kb/
+
+# 运行时生成的缓存和报告不进入版本库。
+data/cache/*.json
+data/cache/**/*.json
+data/reports/*.md
+data/reports/**/*.md
+logs/
+
+# 保留空目录占位文件。
+!data/cache/.gitkeep
+!data/reports/.gitkeep

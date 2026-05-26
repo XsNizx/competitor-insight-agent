@@ -1,0 +1,28 @@
+# Python 构建系统配置：告诉 pip 使用 setuptools 构建本项目。
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# 项目基础元数据：包名、版本、描述、README 和 Python 版本要求。
+[project]
+name = "competitor-insight-agent"
+version = "0.2.0"
+description = "Agno multi-agent competitor analysis with Tavily search and DeepSeek or local Ollama LLMs."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "CompetitorInsightAgent" }]
+
+# 运行时依赖：
+# - agno：多智能体编排框架
+# - openai：Agno 的 DeepSeek/OpenAI 兼容客户端依赖
+# - ollama：Agno 调用本地 Ollama 模型的客户端依赖
+dependencies = [
+    "agno>=2.6.0",
+    "openai>=1.0.0",
+    "ollama>=0.4.0",
+    "streamlit>=1.36.0",
+]
+
+# setuptools 使用 src 布局查找 Python 包。
+[tool.setuptools.packages.find]
+where = ["src"]

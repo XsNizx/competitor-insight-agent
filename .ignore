@@ -1,0 +1,10 @@
+# 本文件供 rg 等本地搜索工具使用，让搜索结果聚焦源码和文档。
+__pycache__/
+*.py[cod]*
+tests/_tmp_cache/
+tests/_tmp_kb/
+data/cache/*.json
+data/cache/**/*.json
+data/reports/*.md
+data/reports/**/*.md
+logs/
