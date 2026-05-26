@@ -113,7 +113,3 @@ streamlit run streamlit_app.py
 - 不要把真实 API Key 写入源码、README 或任何将要提交的文件。
 - 本项目不依赖 `.env`，API Key 在网页运行时输入。
 - 如果曾经误提交过真实密钥，请立即吊销旧 Key，并清理 Git 历史后再公开仓库。
-
-## License
-
-本项目用于学习和课程实践。如需公开复用，可根据自己的发布需求补充许可证文件。
