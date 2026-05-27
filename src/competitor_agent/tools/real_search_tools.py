@@ -17,7 +17,7 @@ from competitor_agent.config import settings
 
 MAX_ANSWER_CHARS = 800
 MAX_CONTENT_CHARS = 700
-MAX_RESULTS_PER_QUERY = 3
+MAX_RESULTS_PER_QUERY = 6
 
 
 def _shorten(text: Any, max_chars: int) -> str:
@@ -58,6 +58,9 @@ def _run_tavily_search(
     base_url: str | None = None,
     search_depth: str | None = None,
     default_max_results: int | None = None,
+    topic: str | None = None,
+    time_range: str | None = None,
+    days: int | None = None,
 ) -> str:
     """执行 Tavily HTTP 请求，并返回紧凑 JSON 证据。"""
 
@@ -67,14 +70,19 @@ def _run_tavily_search(
 
     requested_limit = max_results or default_max_results or settings.tavily_max_results
     limit = max(1, min(requested_limit, MAX_RESULTS_PER_QUERY))
+    resolved_topic = topic or "general"
     payload: dict[str, Any] = {
         "query": query,
-        "topic": "general",
+        "topic": resolved_topic,
         "search_depth": search_depth or settings.tavily_search_depth,
         "include_answer": True,
         "include_raw_content": False,
         "max_results": limit,
     }
+    if resolved_topic == "news":
+        payload["days"] = days or settings.tavily_news_days
+    else:
+        payload["time_range"] = time_range or settings.tavily_time_range
     data = json.dumps(payload).encode("utf-8")
     request = Request(
         f"{(base_url or settings.tavily_api_base_url).rstrip('/')}/search",
@@ -101,10 +109,24 @@ def _run_tavily_search(
     return json.dumps(normalized, ensure_ascii=False)
 
 
-def tavily_search(query: str, api_key: str, max_results: int | None = None) -> str:
+def tavily_search(
+    query: str,
+    api_key: str,
+    max_results: int | None = None,
+    topic: str | None = None,
+    time_range: str | None = None,
+    days: int | None = None,
+) -> str:
     """使用显式传入的 Tavily API Key 搜索实时网页。"""
 
-    return _run_tavily_search(query=query, max_results=max_results, api_key=api_key)
+    return _run_tavily_search(
+        query=query,
+        max_results=max_results,
+        api_key=api_key,
+        topic=topic,
+        time_range=time_range,
+        days=days,
+    )
 
 
 def make_tavily_search_tool(
@@ -112,16 +134,27 @@ def make_tavily_search_tool(
     base_url: str | None = None,
     search_depth: str | None = None,
     max_results: int | None = None,
+    time_range: str | None = None,
+    news_days: int | None = None,
 ):
     """创建一个绑定了运行时 API Key 的 Agno 工具函数。
 
     Streamlit 页面中的 API Key 来自侧栏输入框。使用闭包后，
-    Agno 调用工具时仍然只需要传 `query` 和可选的 `max_results`。
+    Agno 调用工具时只需要传 `query`，也可以显式传 `topic`、`time_range`
+    或 `days` 来加强时效性。
     """
 
     configured_max_results = max_results
+    configured_time_range = time_range
+    configured_news_days = news_days
 
-    def tavily_search_for_run(query: str, max_results: int | None = None) -> str:
+    def tavily_search_for_run(
+        query: str,
+        max_results: int | None = None,
+        topic: str | None = None,
+        time_range: str | None = None,
+        days: int | None = None,
+    ) -> str:
         """使用 Tavily 搜索实时网页，并返回紧凑 JSON 证据。"""
 
         return _run_tavily_search(
@@ -131,6 +164,9 @@ def make_tavily_search_tool(
             base_url=base_url,
             search_depth=search_depth,
             default_max_results=configured_max_results,
+            topic=topic,
+            time_range=time_range or configured_time_range,
+            days=days or configured_news_days,
         )
 
     tavily_search_for_run.__name__ = "tavily_search"

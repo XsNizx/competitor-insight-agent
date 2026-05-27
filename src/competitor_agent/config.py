@@ -33,7 +33,9 @@ class Settings:
     # Tavily 搜索默认参数。
     tavily_api_base_url: str = "https://api.tavily.com"
     tavily_search_depth: str = "advanced"
-    tavily_max_results: int = 5
+    tavily_max_results: int = 8
+    tavily_time_range: str = "month"
+    tavily_news_days: int = 30
 
     # Ollama 本地模型配置。搜索仍然使用 Tavily。
     ollama_model: str = "llama3.2:latest"

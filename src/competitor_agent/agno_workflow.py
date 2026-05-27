@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -146,6 +147,8 @@ class AgnoCompetitorWorkflow:
             base_url=settings.tavily_api_base_url,
             search_depth=settings.tavily_search_depth,
             max_results=settings.tavily_max_results,
+            time_range=settings.tavily_time_range,
+            news_days=settings.tavily_news_days,
         )
         search_tool_name = "tavily_search"
         evidence_provider = "Tavily 搜索"
@@ -206,7 +209,9 @@ class AgnoCompetitorWorkflow:
             instructions=[
                 "你是竞品分析系统中的资料检索智能体 SearchAgent。",
                 f"必须调用 {search_tool_name} 获取 {evidence_provider} 证据，不能凭记忆生成来源。",
-                "围绕官网、定价页、产品文档、官方博客/新闻、第三方评测、用户社区或评论分别检索；所有模型供应商都必须使用 Tavily 在线搜索结果作为证据。",
+                f"优先检索最近 {settings.tavily_news_days} 天到 1 个月内发布或更新的资料；调用工具时通用搜索使用 time_range='month'，新闻、官方博客、更新公告使用 topic='news' 和 days={settings.tavily_news_days}。",
+                "围绕官网、定价页、产品文档、官方博客/新闻、更新日志、第三方评测、用户社区或评论分别检索；所有模型供应商都必须使用 Tavily 在线搜索结果作为证据。",
+                "如果最新资料不足，可以补充最近 1 年内的高可信来源，但必须在 summary 或 relevance 中说明资料时效性限制。",
                 "输出来源时保留 title、source_url、summary、relevance、source_type。",
                 "每个 summary 不超过 80 个汉字，sources 最多返回 6 条；不要把网页全文或工具原始 JSON 整段复制到输出。",
                 "输出必须严格符合 SearchEvidenceOutput schema，不要输出 Markdown 或解释文字。",
@@ -323,16 +328,20 @@ class AgnoCompetitorWorkflow:
                 return profile_from_dict(cached)
 
         self._emit_progress("正在搜索网页", f"SearchAgent 正在为 {product_name} 调用 {self.search_tool_name} 获取资料。", 35)
+        today = date.today().isoformat()
+        current_year = date.today().year
         evidence = self._run_structured(
             self.searcher,
             {
                 "product_name": product_name,
                 "topic": plan.topic,
+                "freshness_requirement": f"当前日期是 {today}。优先使用最近 30 天或 1 个月内发布/更新的资料；不足时再使用 {current_year} 年内资料。",
                 "required_sources": plan.required_sources,
                 "search_queries": [
-                    f"{product_name} 官网 产品定位 主要功能",
-                    f"{product_name} 定价 商业模式 pricing",
-                    f"{product_name} 用户评价 优点 缺点 reviews",
+                    f"{product_name} 最新 产品定位 主要功能 {current_year}",
+                    f"{product_name} 最新定价 价格变动 pricing update {current_year}",
+                    f"{product_name} release notes changelog product updates {current_year}",
+                    f"{product_name} 最新 用户评价 优点 缺点 reviews {current_year}",
                 ],
             },
             SearchEvidenceOutput,
